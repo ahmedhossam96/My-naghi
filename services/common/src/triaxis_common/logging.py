@@ -177,6 +177,7 @@ class _State:
         self.min_level = Level.INFO
         self.site: str | None = None
         self.audit_hook: Sink | None = None
+        self.listeners: list[Sink] = []
 
 
 _state = _State()
@@ -187,6 +188,8 @@ def _emit(line: str) -> None:
         _state.sink(line)
         if _state.audit_hook is not None:
             _state.audit_hook(line)
+        for listener in _state.listeners:
+            listener(line)
 
 
 def set_strict(strict: bool) -> None:
@@ -215,6 +218,18 @@ def validate_log_line(line: str) -> bool:
 def set_audit_hook(hook: Sink | None) -> None:
     """Install a callback that receives every emitted line (test schema gate)."""
     _state.audit_hook = hook
+
+
+def add_listener(listener: Sink) -> None:
+    """Receive every emitted (already validated, allow-listed) line, e.g. an audit view."""
+    with _state.lock:
+        _state.listeners.append(listener)
+
+
+def remove_listener(listener: Sink) -> None:
+    with _state.lock:
+        if listener in _state.listeners:
+            _state.listeners.remove(listener)
 
 
 def _violation_field_names(exc: ValidationError) -> list[str]:

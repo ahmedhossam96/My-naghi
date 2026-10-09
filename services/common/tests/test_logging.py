@@ -298,3 +298,16 @@ def test_property_arbitrary_content_never_reaches_output(content: str, field: st
         # Degraded record: no caller-supplied field survives.
         assert record["event"] == "log_schema_violation"
         assert set(record) == {"ts", "level", "event", "service"}
+
+
+def test_listeners_receive_validated_lines(logs: LogCapture) -> None:
+    received: list[str] = []
+    tlog.add_listener(received.append)
+    try:
+        AllowListLogger("demo").info(Event.SERVICE_READY)
+    finally:
+        tlog.remove_listener(received.append)
+        tlog.remove_listener(received.append)  # removing twice is a no-op
+    AllowListLogger("demo").info(Event.SERVICE_READY)
+    assert len(received) == 1
+    assert validate_log_line(received[0])
