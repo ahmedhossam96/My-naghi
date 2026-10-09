@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Triaxis Demo</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/charts.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" aria-label="Navigation">
+    <div class="lockup" id="lockup">
+      <!-- If the official logo file is placed at static/brand/quantum-seal-logo.svg it replaces
+           this text header (the wordmark is never re-typeset; see ADR 0019). -->
+      <div class="company">Quantum Seal</div>
+      <div class="tagline">The Future of Security</div>
+    </div>
+    <div class="product">
+      <div class="kicker">PROTOTYPE</div>
+      <div class="name">Triaxis</div>
+      <div class="desc">Sovereign AI inference platform</div>
+    </div>
+    <ul class="nav" id="nav">
+      <li><a href="#overview" data-view="overview"><span class="num">01</span>Executive Overview</a></li>
+      <li><a href="#playground" data-view="playground"><span class="num">02</span>AI Playground</a></li>
+      <li><a href="#security" data-view="security"><span class="num">03</span>Security Operations</a></li>
+      <li><a href="#infrastructure" data-view="infrastructure"><span class="num">04</span>Riyadh / Jeddah</a></li>
+      <li><a href="#tenants" data-view="tenants"><span class="num">05</span>Tenants &amp; Audit</a></li>
+    </ul>
+    <div class="sidebar-foot">Local demo · runs offline · no data stored</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="view-title">Executive Overview</h1>
+        <p class="subtitle" id="view-subtitle"></p>
+      </div>
+      <div class="context">
+        <label>Tenant
+          <select id="tenant-select" aria-label="Tenant"></select>
+        </label>
+        <label>Brand
+          <select id="brand-select" aria-label="Brand"></select>
+        </label>
+        <span class="session-chip" id="session-chip">No session</span>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="notice" role="note">
+        <span><strong>Prototype.</strong> <span id="notice-text">Inference, site infrastructure and security operations are simulated.</span></span>
+        <span class="legend">
+          <span><span class="badge live">Live</span> real Triaxis code or configuration</span>
+          <span><span class="badge simulated">Simulated</span> mock service</span>
+          <span><span class="badge demo_data">Demo Data</span> illustrative values</span>
+        </span>
+      </div>
+
+      <section id="view-overview" data-view-panel="overview"></section>
+      <section id="view-playground" data-view-panel="playground" hidden></section>
+      <section id="view-security" data-view-panel="security" hidden></section>
+      <section id="view-infrastructure" data-view-panel="infrastructure" hidden></section>
+      <section id="view-tenants" data-view-panel="tenants" hidden></section>
+    </main>
+  </div>
+</div>
+</body>
+</html>
