@@ -1,0 +1,160 @@
+# Canonical CI pipeline (ADR 0003).
+# Copies live in .github/workflows/ and .forgejo/workflows/; `lint` fails if they drift.
+# Only actions/checkout is used, pinned by commit SHA. Tools come from hash-pinned
+# requirement files (.ci/requirements/) or version-pinned container images.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_FROZEN: "1"
+  UV_PYTHON_DOWNLOADS: automatic
+  PYTHONDONTWRITEBYTECODE: "1"
+  GITLEAKS_IMAGE: ghcr.io/gitleaks/gitleaks:v8.21.2
+  SYFT_IMAGE: docker.io/anchore/syft:v1.18.1
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Bootstrap uv (hash-pinned)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/uv"
+          "$RUNNER_TEMP/uv/bin/pip" install --require-hashes --no-deps -r .ci/requirements/uv.txt
+          echo "$RUNNER_TEMP/uv/bin" >> "$GITHUB_PATH"
+      - run: uv sync --all-packages
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run python -m tools.check_ci_sync
+
+  typecheck:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Bootstrap uv (hash-pinned)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/uv"
+          "$RUNNER_TEMP/uv/bin/pip" install --require-hashes --no-deps -r .ci/requirements/uv.txt
+          echo "$RUNNER_TEMP/uv/bin" >> "$GITHUB_PATH"
+      - run: uv sync --all-packages
+      - run: uv run mypy
+
+  unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Bootstrap uv (hash-pinned)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/uv"
+          "$RUNNER_TEMP/uv/bin/pip" install --require-hashes --no-deps -r .ci/requirements/uv.txt
+          echo "$RUNNER_TEMP/uv/bin" >> "$GITHUB_PATH"
+      - run: uv sync --all-packages
+      # Coverage gate (>= 85% on triaxis_common incl. auth, and tools) is in pyproject addopts.
+      - run: uv run pytest
+
+  policy:
+    name: licence gate + no weights
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Bootstrap uv (hash-pinned)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/uv"
+          "$RUNNER_TEMP/uv/bin/pip" install --require-hashes --no-deps -r .ci/requirements/uv.txt
+          echo "$RUNNER_TEMP/uv/bin" >> "$GITHUB_PATH"
+      - run: uv sync --all-packages
+      - run: uv run python -m tools.model_registry check
+      - run: uv run python -m tools.license_gate
+      - run: uv run python -m tools.check_no_weights --all
+
+  secrets:
+    name: gitleaks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan full history
+        run: >
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo:ro" "$GITLEAKS_IMAGE"
+          detect --source /repo --config /repo/.gitleaks.toml --redact --verbose --exit-code 1
+
+  sast:
+    name: semgrep + bandit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Bootstrap uv (hash-pinned)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/uv"
+          "$RUNNER_TEMP/uv/bin/pip" install --require-hashes --no-deps -r .ci/requirements/uv.txt
+          echo "$RUNNER_TEMP/uv/bin" >> "$GITHUB_PATH"
+      - run: uv sync --all-packages
+      - name: bandit (fail on high severity)
+        run: uv run bandit -c pyproject.toml -r services tools --severity-level high --confidence-level medium
+      - name: Install semgrep (hash-pinned)
+        run: |
+          uv venv --python 3.12 "$RUNNER_TEMP/semgrep"
+          VIRTUAL_ENV="$RUNNER_TEMP/semgrep" uv pip install --require-hashes -r .ci/requirements/semgrep.txt
+      - name: semgrep (OWASP + Python packs, fail on ERROR)
+        run: >
+          "$RUNNER_TEMP/semgrep/bin/semgrep" scan --metrics=off --error --severity ERROR
+          --config p/owasp-top-ten --config p/python services tools
+
+  deps:
+    name: pip-audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Bootstrap uv (hash-pinned)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/uv"
+          "$RUNNER_TEMP/uv/bin/pip" install --require-hashes --no-deps -r .ci/requirements/uv.txt
+          echo "$RUNNER_TEMP/uv/bin" >> "$GITHUB_PATH"
+      - run: uv sync --all-packages
+      - name: Audit the locked dependency set
+        run: |
+          uv export --all-packages --all-groups --no-emit-workspace -o "$RUNNER_TEMP/requirements.txt"
+          uv run pip-audit -r "$RUNNER_TEMP/requirements.txt" --require-hashes --disable-pip --strict
+
+  sbom:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Generate CycloneDX SBOM for the source tree
+        run: SYFT_IMAGE="$SYFT_IMAGE" ./tools/sbom.sh dir:. sbom.cdx.json
+      - name: Sanity-check SBOM
+        run: python3 -c "import json; d=json.load(open('sbom.cdx.json')); assert d['bomFormat']=='CycloneDX' and d['components'], 'empty SBOM'; print(len(d['components']), 'components')"

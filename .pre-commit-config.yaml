@@ -1,0 +1,40 @@
+# Install: uv run pre-commit install
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --force-exclude
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --check --force-exclude
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy (strict)
+        entry: uv run mypy
+        language: system
+        pass_filenames: false
+        types: [python]
+      - id: no-weights
+        name: block model weights and pickles
+        entry: uv run python -m tools.check_no_weights
+        language: system
+      - id: license-gate
+        name: model licence gate
+        entry: uv run python -m tools.license_gate
+        language: system
+        pass_filenames: false
+        files: ^models/
+      - id: ci-sync
+        name: CI workflow copies in sync
+        entry: uv run python -m tools.check_ci_sync
+        language: system
+        pass_filenames: false
+        files: ^\.(ci|github|forgejo)/workflows/

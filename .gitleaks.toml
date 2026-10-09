@@ -1,0 +1,19 @@
+# gitleaks configuration: default rules plus Triaxis-specific ones.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "openbao-token"
+description = "OpenBao / Vault service or batch token"
+regex = '''\b(hvs|hvb)\.[A-Za-z0-9_-]{24,}\b'''
+keywords = ["hvs.", "hvb."]
+
+[[rules]]
+id = "keycloak-client-secret"
+description = "Keycloak client secret assignment"
+regex = '''(?i)client[_-]?secret\s*[:=]\s*["']?[A-Za-z0-9]{24,}["']?'''
+keywords = ["client_secret", "client-secret", "clientsecret"]
+
+[allowlist]
+description = "Lockfiles contain hashes, not secrets"
+paths = ['''uv\.lock''', '''\.ci/requirements/.*\.txt''']
