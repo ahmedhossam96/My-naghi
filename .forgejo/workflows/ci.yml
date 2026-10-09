@@ -72,7 +72,7 @@ jobs:
       - run: uv run pytest
 
   policy:
-    name: licence gate + no weights
+    name: licence gate, registry, schemas, no weights
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -87,6 +87,8 @@ jobs:
       - run: uv sync --all-packages
       - run: uv run python -m tools.model_registry check
       - run: uv run python -m tools.license_gate
+      - run: uv run python -m tools.model_registry check-tenants
+      - run: uv run python -m tools.export_schemas --check
       - run: uv run python -m tools.check_no_weights --all
 
   secrets:

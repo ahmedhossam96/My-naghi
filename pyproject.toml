@@ -21,6 +21,7 @@ dev = [
     "pip-audit>=2.7",
     "types-pyyaml>=6.0",
     "pre-commit>=4.0",
+    "httpx2>=2.13.1",
 ]
 
 [tool.uv]
@@ -49,6 +50,9 @@ ignore = [
     "PLR2004",  # magic values are fine in validators
 ]
 
+[tool.ruff.lint.isort]
+known-first-party = ["triaxis_common", "tools", "tests"]
+
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
@@ -62,8 +66,9 @@ ban-relative-imports = "all"
 "torch.load".msg = "Banned: pickle-based loading. Use safetensors (ADR 0011)."
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S101", "S105", "S106", "PLR2004", "ARG001", "TID251", "PLC0415", "S108"]
-"tests/**" = ["S101", "S105", "S106", "PLR2004", "ARG001", "TID251", "PLC0415", "S108"]
+# RUF001: tests deliberately use Arabic and Arabic-Indic characters.
+"**/tests/**" = ["S101", "S105", "S106", "S108", "S603", "S607", "PLR2004", "ARG001", "TID251", "PLC0415", "TRY301", "RUF001"]
+"tests/**" = ["S101", "S105", "S106", "S108", "S603", "S607", "PLR2004", "ARG001", "TID251", "PLC0415", "TRY301", "RUF001"]
 "conftest.py" = ["S101"]
 # runtime.py is the one place allowed to point tempfile at the tmpfs.
 "services/common/src/triaxis_common/runtime.py" = ["TID251"]
