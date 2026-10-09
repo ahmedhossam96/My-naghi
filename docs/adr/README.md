@@ -24,3 +24,4 @@ that supersedes the old one and update the old one's status.
 | [0016](0016-error-contract.md) | Error contract | accepted |
 | [0017](0017-secrets-from-openbao.md) | Secrets from OpenBao at runtime | accepted |
 | [0018](0018-saudi-id-check-digit.md) | Saudi national ID / Iqama check digit | accepted (provisional) |
+| [0019](0019-demo-prototype.md) | Client-demo prototype (Milestone 1.5) | accepted |
