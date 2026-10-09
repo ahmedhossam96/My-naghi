@@ -5,6 +5,7 @@ description = "Triaxis sovereign AI inference platform — workspace root (tooli
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "triaxis-common",
+    "triaxis-demo",
     "pydantic>=2.9",
     "pyyaml>=6.0.2",
 ]
@@ -28,10 +29,11 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["services/common"]
+members = ["services/common", "services/demo"]
 
 [tool.uv.sources]
 triaxis-common = { workspace = true }
+triaxis-demo = { workspace = true }
 
 # ---------------------------------------------------------------- ruff
 [tool.ruff]
@@ -51,7 +53,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["triaxis_common", "tools", "tests"]
+known-first-party = ["triaxis_common", "triaxis_demo", "tools", "tests"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -80,12 +82,15 @@ python_version = "3.12"
 strict = true
 warn_unreachable = true
 plugins = ["pydantic.mypy"]
-files = ["services/common/src", "services/common/tests", "tools", "tests", "conftest.py"]
+files = [
+    "services/common/src", "services/common/tests", "services/demo/src", "services/demo/tests",
+    "tools", "tests", "conftest.py",
+]
 explicit_package_bases = true
-mypy_path = "services/common/src:."
+mypy_path = "services/common/src:services/demo/src:."
 
 [[tool.mypy.overrides]]
-module = ["tests.*", "services.common.tests.*", "conftest"]
+module = ["tests.*", "services.common.tests.*", "services.demo.tests.*", "conftest"]
 disallow_untyped_decorators = false
 
 [tool.pydantic-mypy]
@@ -96,7 +101,7 @@ warn_required_dynamic_aliases = true
 # ---------------------------------------------------------------- pytest
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["services/common/tests", "tests/unit"]
+testpaths = ["services/common/tests", "services/demo/tests", "tests/unit"]
 pythonpath = ["."]
 addopts = [
     "--import-mode=importlib",
@@ -105,6 +110,7 @@ addopts = [
     "-ra",
     "--cov=triaxis_common",
     "--cov=tools",
+    "--cov=triaxis_demo",
     "--cov-branch",
     "--cov-report=term-missing:skip-covered",
     "--cov-report=xml",
@@ -119,7 +125,7 @@ markers = [
 
 [tool.coverage.run]
 branch = true
-source = ["triaxis_common", "tools"]
+source = ["triaxis_common", "tools", "triaxis_demo"]
 
 [tool.coverage.report]
 exclude_also = [
