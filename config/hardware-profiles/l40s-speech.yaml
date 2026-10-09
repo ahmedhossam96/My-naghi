@@ -1,0 +1,7 @@
+# Alternative STT/TTS pool server without MIG (ADR 0013).
+id: l40s-speech
+role: stt_tts
+gpu_model: NVIDIA L40S
+gpu_memory_gb: 48
+gpus_per_server: 4
+cell_scale_up_threshold_pct: 60

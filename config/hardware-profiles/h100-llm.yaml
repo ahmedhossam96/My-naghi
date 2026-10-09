@@ -1,0 +1,7 @@
+# LLM pool server (ADR 0013). Reference profile for LLM SLO targets.
+id: h100-llm
+role: llm
+gpu_model: NVIDIA H100 80GB SXM
+gpu_memory_gb: 80
+gpus_per_server: 8
+cell_scale_up_threshold_pct: 60

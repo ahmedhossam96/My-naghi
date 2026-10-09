@@ -1,0 +1,31 @@
+# Example tenant. Onboarding a tenant = this file + Keycloak client and scopes
+# (<tenant>:<brand>:<workload>). No code change. Schema: config/schema/tenant.schema.json
+schema_version: 1
+id: example
+display_name: Example Motors
+data_residency: SA
+approved_origin_countries: [SA, US, CN]
+models:
+  stt: whisper-large-v3
+  tts: chatterbox-multilingual
+  llm_voice: qwen3.5-35b-a3b
+  llm_chat: qwen3.5-27b
+batch_deadline:
+  kind: same_day
+brands:
+  - id: brand-a
+    display_name: Brand A
+    guardrail_policy: automotive-retail
+    workloads: [stt, tts, llm, voice, batch]
+    quotas:
+      stt: {requests_per_minute: 600, concurrent_streams: 50, audio_seconds_per_hour: 180000}
+      tts: {requests_per_minute: 600, concurrent_streams: 50}
+      llm: {requests_per_minute: 1200, concurrent_streams: 100, tokens_per_minute: 400000}
+      voice: {requests_per_minute: 120, concurrent_streams: 40}
+      batch: {requests_per_minute: 60, concurrent_streams: 4, batch_jobs_per_day: 5000}
+  - id: brand-b
+    display_name: Brand B
+    guardrail_policy: automotive-retail
+    workloads: [llm]
+    quotas:
+      llm: {requests_per_minute: 300, concurrent_streams: 20, tokens_per_minute: 100000}

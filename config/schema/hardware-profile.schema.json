@@ -1,0 +1,84 @@
+{
+  "$defs": {
+    "PoolRole": {
+      "enum": [
+        "llm",
+        "stt_tts",
+        "dev"
+      ],
+      "title": "PoolRole",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "ADR 0013. One file per profile in ``config/hardware-profiles/``.",
+  "properties": {
+    "cell_scale_up_threshold_pct": {
+      "default": 60,
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Cell Scale Up Threshold Pct",
+      "type": "integer"
+    },
+    "gpu_memory_gb": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Gpu Memory Gb"
+    },
+    "gpu_model": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9 ._-]{1,40}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Gpu Model"
+    },
+    "gpus_per_server": {
+      "maximum": 16,
+      "minimum": 0,
+      "title": "Gpus Per Server",
+      "type": "integer"
+    },
+    "id": {
+      "pattern": "^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$",
+      "title": "Id",
+      "type": "string"
+    },
+    "mig_profile": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9]g\\.[0-9]+gb$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mig Profile"
+    },
+    "role": {
+      "$ref": "#/$defs/PoolRole"
+    }
+  },
+  "required": [
+    "id",
+    "role",
+    "gpus_per_server"
+  ],
+  "title": "HardwareProfile",
+  "type": "object"
+}

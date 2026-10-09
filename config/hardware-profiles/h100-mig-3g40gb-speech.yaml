@@ -1,0 +1,8 @@
+# STT/TTS pool server with MIG slicing (ADR 0013). Reference profile for speech SLO targets.
+id: h100-mig-3g40gb-speech
+role: stt_tts
+gpu_model: NVIDIA H100 80GB SXM
+gpu_memory_gb: 80
+gpus_per_server: 8
+mig_profile: 3g.40gb
+cell_scale_up_threshold_pct: 60

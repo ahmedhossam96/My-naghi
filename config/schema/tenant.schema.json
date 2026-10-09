@@ -1,0 +1,264 @@
+{
+  "$defs": {
+    "BatchDeadline": {
+      "additionalProperties": false,
+      "description": "ADR 0014. ``same_day`` or a number of hours.",
+      "properties": {
+        "hours": {
+          "anyOf": [
+            {
+              "maximum": 24,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hours"
+        },
+        "kind": {
+          "default": "same_day",
+          "enum": [
+            "same_day",
+            "hours"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "BatchDeadline",
+      "type": "object"
+    },
+    "BrandConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "display_name": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "guardrail_policy": {
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$",
+          "title": "Guardrail Policy",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$",
+          "title": "Id",
+          "type": "string"
+        },
+        "models": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModelSelection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "quotas": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Quota"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Workload"
+          },
+          "title": "Quotas",
+          "type": "object"
+        },
+        "workloads": {
+          "items": {
+            "$ref": "#/$defs/Workload"
+          },
+          "title": "Workloads",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "display_name",
+        "workloads",
+        "quotas",
+        "guardrail_policy"
+      ],
+      "title": "BrandConfig",
+      "type": "object"
+    },
+    "ModelSelection": {
+      "additionalProperties": false,
+      "description": "Registry model IDs per profile (ADR 0010).",
+      "properties": {
+        "llm_chat": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+          "title": "Llm Chat",
+          "type": "string"
+        },
+        "llm_voice": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+          "title": "Llm Voice",
+          "type": "string"
+        },
+        "stt": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+          "title": "Stt",
+          "type": "string"
+        },
+        "tts": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+          "title": "Tts",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stt",
+        "tts",
+        "llm_voice",
+        "llm_chat"
+      ],
+      "title": "ModelSelection",
+      "type": "object"
+    },
+    "Quota": {
+      "additionalProperties": false,
+      "description": "Per (tenant, brand, workload) limits. Brands never share a quota.",
+      "properties": {
+        "audio_seconds_per_hour": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Audio Seconds Per Hour"
+        },
+        "batch_jobs_per_day": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Batch Jobs Per Day"
+        },
+        "concurrent_streams": {
+          "exclusiveMinimum": 0,
+          "title": "Concurrent Streams",
+          "type": "integer"
+        },
+        "requests_per_minute": {
+          "exclusiveMinimum": 0,
+          "title": "Requests Per Minute",
+          "type": "integer"
+        },
+        "tokens_per_minute": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tokens Per Minute"
+        }
+      },
+      "required": [
+        "requests_per_minute",
+        "concurrent_streams"
+      ],
+      "title": "Quota",
+      "type": "object"
+    },
+    "Workload": {
+      "description": "What a token scope grants. Part of ``tenant:brand:workload``.",
+      "enum": [
+        "stt",
+        "tts",
+        "llm",
+        "voice",
+        "batch"
+      ],
+      "title": "Workload",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Everything needed to onboard a tenant with configuration only.",
+  "properties": {
+    "approved_origin_countries": {
+      "items": {
+        "pattern": "^[A-Z]{2}$",
+        "type": "string"
+      },
+      "title": "Approved Origin Countries",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "batch_deadline": {
+      "$ref": "#/$defs/BatchDeadline",
+      "default": {
+        "hours": null,
+        "kind": "same_day"
+      }
+    },
+    "brands": {
+      "items": {
+        "$ref": "#/$defs/BrandConfig"
+      },
+      "minItems": 1,
+      "title": "Brands",
+      "type": "array"
+    },
+    "data_residency": {
+      "pattern": "^[A-Z]{2}$",
+      "title": "Data Residency",
+      "type": "string"
+    },
+    "display_name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "id": {
+      "pattern": "^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$",
+      "title": "Id",
+      "type": "string"
+    },
+    "models": {
+      "$ref": "#/$defs/ModelSelection"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "display_name",
+    "data_residency",
+    "approved_origin_countries",
+    "models",
+    "brands"
+  ],
+  "title": "TenantConfig",
+  "type": "object"
+}

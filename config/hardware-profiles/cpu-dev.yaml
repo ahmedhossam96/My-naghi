@@ -1,0 +1,4 @@
+# Laptop / CI profile with mock models (ADR 0012). Not used for SLO validation.
+id: cpu-dev
+role: dev
+gpus_per_server: 0
