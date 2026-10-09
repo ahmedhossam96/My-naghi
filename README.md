@@ -11,6 +11,15 @@ retention of customer content.
 - Build plan and milestones: [`docs/plan.md`](docs/plan.md)
 - Contributor / agent guide: [`CLAUDE.md`](CLAUDE.md)
 
+## Client demo (prototype)
+
+```bash
+uv sync --all-packages
+uv run python -m triaxis_demo     # http://127.0.0.1:8080, offline, simulated inference
+```
+
+See [`services/demo/README.md`](services/demo/README.md) for the views and a demo script.
+
 ## Quickstart (development)
 
 ```bash

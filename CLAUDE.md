@@ -5,9 +5,10 @@ TTS, LLM) with zero retention of customer content. First tenant: MY NAGHI
 Motors (KSA). Read `docs/architecture.md` and `docs/threat-model.md` before
 changing anything security-relevant; decisions live in `docs/adr/`.
 
-**Current milestone: 1 — Foundations (complete, awaiting review).**
-Next: Milestone 2 — core inference services (STT, TTS, LLM adapter with mocks,
-OpenAPI specs, contract tests, compose stack). Roadmap: `docs/plan.md`.
+**Current milestone: 1.5 — client-demo prototype (complete, awaiting review).**
+Milestone 1 (Foundations) is complete and reviewed. Next: Milestone 2 — core
+inference services (STT, TTS, LLM adapter with mocks, OpenAPI specs, contract
+tests, compose stack). Roadmap: `docs/plan.md`.
 
 ## Architecture in one paragraph
 
@@ -36,6 +37,7 @@ uv run python -m tools.check_no_weights --all   # no weights/pickles/large binar
 uv run python -m tools.check_ci_sync            # .github/.forgejo workflow copies match .ci/
 tools/sbom.sh dir:. sbom.cdx.json               # CycloneDX SBOM (syft or its container)
 uv run pre-commit install                       # gitleaks, ruff, mypy, licence gate, no-weights
+uv run python -m triaxis_demo                   # client demo on http://127.0.0.1:8080
 ```
 
 CI (`.ci/workflows/ci.yml`, copied to `.github/` and `.forgejo/`): lint,
@@ -53,6 +55,12 @@ copy it to both mirrors.
   (AllowListSpanExporter, LatencyMetrics) · `secrets` (OpenBao/File providers)
   · `runtime` (harden_process) · `http` (middleware, error handlers,
   create_base_app with /healthz and /readyz).
+- `services/demo/` — `triaxis_demo`: local client-demo prototype (ADR 0019).
+  FastAPI + static UI (plain JS, no build, no external requests), Quantum Seal
+  brand colours. Mock engines in `mocks.py` (to be replaced by M2 services),
+  failover state machine in `simulation.py`, labelled demo data in
+  `demo_data.py`. Every panel/response carries `live` / `simulated` /
+  `demo_data` provenance — keep that rule when changing it.
 - `services/<svc>/` — one uv workspace member per service (from M2).
 - `config/` — tenants, hardware profiles, generated JSON Schemas.
 - `models/registry.yaml` — model/dataset registry (metadata only).
