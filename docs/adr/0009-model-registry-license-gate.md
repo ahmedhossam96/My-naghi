@@ -29,7 +29,7 @@ optional `approval`), `languages`, `hardware_profiles`, `format`
 
 | Verdict | Rule |
 |---|---|
-| `deny` | Licence id, name or notes contain a non-commercial / research-only marker (`NC`, `NonCommercial`, `research only`, …). **Not overridable.** Also: any artefact that is not `.safetensors` or an allowed config/tokenizer file. |
+| `deny` | Licence SPDX id, name or licence notes contain a non-commercial / research-only marker (`NC`, `NonCommercial`, `research only`, …). **Not overridable.** Also: any artefact that is not `.safetensors` or an allowed config/tokenizer file. |
 | `allow` | SPDX id in the allow-list: `Apache-2.0`, `MIT`, `BSD-2-Clause`, `BSD-3-Clause`, `ISC`. |
 | `review_approved` | Any other licence with a committed `approval` record: `approved_by`, `approved_on`, `license_url`, `license_text_sha256`. |
 | `needs_review` | Any other licence without approval. |

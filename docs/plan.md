@@ -1,6 +1,7 @@
 # Triaxis — Build Plan (v1, awaiting approval)
 
-Status: **proposed**. No code is written until this plan is approved.
+Status: **approved** 2026-10-09 (open questions resolved with the proposed defaults).
+Milestone 1: **complete, awaiting review**.
 Scope of this document: overall repository structure, milestone roadmap, the
 decisions taken (each becomes an ADR in Milestone 1), and the detailed plan for
 **Milestone 1 — Foundations**.
@@ -132,7 +133,7 @@ workspaces give one lockfile and one `uv run pytest` for the whole repo.
 | `tracing.py` | OTel tracer/meter setup (OTLP to in-cluster collector only); `AllowListSpanProcessor` drops non-allow-listed attributes; histograms `ttft_ms`, `time_to_first_audio_ms`, `stt_partial_latency_ms`, `voice_to_voice_ms`; label allow-list for Prometheus. |
 | `secrets.py` | `SecretProvider` protocol, `OpenBaoProvider`, `FileProvider` (dev/tests). |
 | `runtime.py` | `harden_process()`: `RLIMIT_CORE=0`, `prctl(PR_SET_DUMPABLE, 0)` on Linux, verify `TMPDIR` is a tmpfs (fail closed in prod mode), set `tempfile.tempdir`; request-ID middleware. |
-| `limits.py` | Shared size/duration/token cap types and request timeout helpers (used from M2). |
+| ~~`limits.py`~~ | Folded into `http.py` (`BodySizeLimitMiddleware`); duration/token caps arrive with the services in M2. |
 
 ### 4.3 Token / scope model
 
