@@ -1,0 +1,120 @@
+# Triaxis model and dataset registry (ADR 0009, 0010, 0011). Metadata only — never weights.
+# Schema: config/schema/model-registry.schema.json
+#
+# All entries below are CANDIDATES from the build brief. Their licences are the
+# *claimed* licences and have NOT been verified from the model cards yet
+# (license.verified_on is empty). Nothing may be downloaded until an entry is
+# verified (tools.model_registry.can_download) and, for non-SPDX-allow-listed
+# licences, an approval record is committed.
+schema_version: 1
+
+models:
+  # ------------------------------------------------------------------ STT
+  - id: cohere-transcribe-arabic
+    task: stt
+    version: "unverified"
+    origin: {organization: Cohere, country: CA}
+    license: {spdx: Apache-2.0, notes: "Claimed in the build brief; verify on the model card."}
+    languages: [ar, en]
+    hardware_profiles: [h100-mig-3g40gb-speech, l40s-speech]
+    notes: "Primary STT candidate. Repository id to be confirmed."
+
+  - id: qwen3-asr-1.7b
+    task: stt
+    version: "1.7b"
+    origin: {organization: Alibaba Qwen, country: CN}
+    license: {spdx: Apache-2.0, notes: "Claimed; verify on the model card."}
+    languages: [ar, en]
+    hardware_profiles: [h100-mig-3g40gb-speech, l40s-speech]
+    notes: "Alternative STT candidate."
+
+  - id: whisper-large-v3
+    task: stt
+    version: "large-v3"
+    source: {repository: openai/whisper-large-v3}
+    origin: {organization: OpenAI, country: US}
+    license: {spdx: MIT, notes: "Claimed; verify on the model card."}
+    languages: [ar, en]
+    hardware_profiles: [h100-mig-3g40gb-speech, l40s-speech]
+    notes: "Baseline for WER comparisons. Use the safetensors weights only."
+
+  # ------------------------------------------------------------------ LLM
+  - id: qwen3.5-35b-a3b
+    task: llm
+    version: "35b-a3b"
+    origin: {organization: Alibaba Qwen, country: CN}
+    license: {spdx: Apache-2.0, notes: "Claimed; verify on the model card."}
+    languages: [ar, en]
+    hardware_profiles: [h100-llm]
+    notes: "Voice profile candidate (MoE, ~3B active parameters)."
+
+  - id: qwen3.5-27b
+    task: llm
+    version: "27b"
+    origin: {organization: Alibaba Qwen, country: CN}
+    license: {spdx: Apache-2.0, notes: "Claimed; verify on the model card."}
+    languages: [ar, en]
+    hardware_profiles: [h100-llm]
+    notes: "Chat and summaries candidate."
+
+  - id: jais-2-70b-chat
+    task: llm
+    version: "70b"
+    origin: {organization: Inception / MBZUAI, country: AE}
+    license: {name: "Custom licence (to be confirmed)", notes: "Needs review and an approval record."}
+    languages: [ar, en]
+    hardware_profiles: [h100-llm]
+    notes: "Alternative LLM; Arabic-first."
+
+  - id: allam-7b
+    task: llm
+    version: "7b"
+    origin: {organization: SDAIA, country: SA}
+    license: {name: "To be confirmed from the model card", notes: "Needs review."}
+    languages: [ar, en]
+    hardware_profiles: [h100-llm]
+    notes: "Alternative LLM; Saudi origin."
+
+  - id: acegpt-v2-32b
+    task: llm
+    version: "v2-32b"
+    origin: {organization: FreedomIntelligence, country: CN}
+    license: {name: "To be confirmed from the model card", notes: "Needs review."}
+    languages: [ar, en]
+    hardware_profiles: [h100-llm]
+    notes: "Alternative LLM."
+
+  # ------------------------------------------------------------------ TTS
+  - id: chatterbox-multilingual
+    task: tts
+    version: "multilingual"
+    origin: {organization: Resemble AI, country: US}
+    license: {spdx: MIT, notes: "Claimed; verify on the model card."}
+    languages: [ar, en]
+    hardware_profiles: [h100-mig-3g40gb-speech, l40s-speech]
+    notes: "Brand-voice fine-tuning only on a consented dataset registered below."
+
+  # ------------------------------------------------------------------ VAD / diarization
+  - id: silero-vad
+    task: vad
+    version: "unverified"
+    origin: {organization: Silero}
+    license: {spdx: MIT, notes: "Claimed; verify."}
+    languages: [ar, en]
+    hardware_profiles: [cpu-dev, h100-mig-3g40gb-speech]
+    notes: >-
+      Distributed as TorchScript/ONNX, not safetensors. Must be converted to
+      safetensors on the isolated model-preparation server (ADR 0011) or not used.
+
+  - id: pyannote-diarization
+    task: diarization
+    version: "unverified"
+    origin: {organization: pyannote}
+    license: {name: "To be confirmed (gated model, terms must be accepted)", notes: "Needs review."}
+    languages: [ar, en]
+    hardware_profiles: [h100-mig-3g40gb-speech]
+    notes: >-
+      Some checkpoints ship as pytorch_model.bin (pickle). Must be converted to
+      safetensors on the model-preparation server (ADR 0011) or not used.
+
+datasets: []
