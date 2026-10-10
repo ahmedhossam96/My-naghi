@@ -94,6 +94,7 @@ workspaces give one lockfile and one `uv run pytest` for the whole repo.
 |---|---|---|
 | 1 | **Foundations** | Skeleton, CLAUDE.md, ADRs, CI green (lint, mypy strict, unit, coverage ≥85% on `common`, gitleaks, semgrep, bandit, pip-audit, SBOM), `triaxis_common`, license gate + registry, threat model v1 |
 | 1.5 | Client-demo prototype (ADR 0019) | Local branded UI: executive dashboard, AI playground, security operations (demo data), Riyadh/Jeddah failover simulation, tenants and audit; every panel labelled live/simulated/demo data |
+| 2a | Classification, adapters, backup (continuation, phases A–F) | ADR 0020–0022: enforced classification/policy, OpenAI-compatible self-hosted adapters with model gate and explicit mock/real mode, classified chat/STT/TTS/voice pipeline in the demo, encrypted integrity-checked backup with isolated restore. Real inference **blocked** until a model is approved and served (see `docs/status/capability-matrix.md`) |
 | 2 | Core inference services | STT/TTS/LLM adapter with mocks + tiny models; OpenAPI 3.1 specs; schemathesis contract tests; compose dev stack |
 | 3 | Gateway & security | Envoy + Coraza (proxy-wasm) + mTLS + Keycloak JWT + per-brand rate limits; guardrails (Presidio + Saudi recognizers, injection filter, topic policy); security tests; zero-retention suite v1 |
 | 4 | Router & lanes | Real-time/batch lanes, priorities, quotas, NATS memory queue, batch job API, resilience mode |

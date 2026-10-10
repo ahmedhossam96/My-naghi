@@ -62,3 +62,23 @@ Metric label names are restricted to `tenant`, `brand`, `workload`, `lane`,
 
 - Debugging relies on request IDs and timings, never content.
 - Adding a field is a reviewed change to `LogRecord` and to this ADR.
+
+## Amendment 2026-10-09 (ADR 0020, 0021, 0022)
+
+New allow-listed fields, all enums or constrained identifiers:
+
+| Field | Type |
+|---|---|
+| `classification` | enum `Classification` |
+| `decision` | enum `Decision` |
+| `data_tags` | list of enum `DataTag` |
+| `reason_codes` | list of enum `ReasonCode` |
+| `policy_version` | `policy@YYYY-MM-DD.n` pattern |
+| `inference_mode` | enum `InferenceMode` |
+| `model` | model id pattern |
+| `job_id` | request-id pattern (backup/restore jobs) |
+| `operator` | slug (backup/restore operator subject) |
+
+New events: `classification_decision`, `inference_completed`,
+`inference_failed`, `model_check`, `backup_started/completed/failed/verified/pruned`,
+`restore_started/completed/failed`, `authz_denied`.

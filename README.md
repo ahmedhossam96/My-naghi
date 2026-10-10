@@ -19,6 +19,7 @@ uv run python -m triaxis_demo     # http://127.0.0.1:8080, offline, simulated in
 ```
 
 See [`services/demo/README.md`](services/demo/README.md) for the views and a demo script.
+Status of real vs simulated capabilities: [`docs/status/capability-matrix.md`](docs/status/capability-matrix.md).
 
 ## Quickstart (development)
 

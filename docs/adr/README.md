@@ -25,3 +25,6 @@ that supersedes the old one and update the old one's status.
 | [0017](0017-secrets-from-openbao.md) | Secrets from OpenBao at runtime | accepted |
 | [0018](0018-saudi-id-check-digit.md) | Saudi national ID / Iqama check digit | accepted (provisional) |
 | [0019](0019-demo-prototype.md) | Client-demo prototype (Milestone 1.5) | accepted |
+| [0020](0020-data-classification-policy-enforcement.md) | Data classification and policy enforcement | accepted |
+| [0021](0021-inference-modes-and-adapters.md) | Inference modes and self-hosted model adapters | accepted |
+| [0022](0022-backup-and-recovery.md) | Backup and recovery | accepted |

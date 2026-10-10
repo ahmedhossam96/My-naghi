@@ -5,10 +5,11 @@ TTS, LLM) with zero retention of customer content. First tenant: MY NAGHI
 Motors (KSA). Read `docs/architecture.md` and `docs/threat-model.md` before
 changing anything security-relevant; decisions live in `docs/adr/`.
 
-**Current milestone: 1.5 — client-demo prototype (complete, awaiting review).**
-Milestone 1 (Foundations) is complete and reviewed. Next: Milestone 2 — core
-inference services (STT, TTS, LLM adapter with mocks, OpenAPI specs, contract
-tests, compose stack). Roadmap: `docs/plan.md`.
+**Current milestone: 2a — classification, inference adapters, backup (awaiting review).**
+Status and evidence: `docs/status/capability-matrix.md` (real inference is
+BLOCKED until a registry model is approved and served). Next: Milestone 2 core
+services (STT/TTS/LLM service images, OpenAPI specs, contract tests, compose).
+Roadmap: `docs/plan.md`.
 
 ## Architecture in one paragraph
 
@@ -37,7 +38,9 @@ uv run python -m tools.check_no_weights --all   # no weights/pickles/large binar
 uv run python -m tools.check_ci_sync            # .github/.forgejo workflow copies match .ci/
 tools/sbom.sh dir:. sbom.cdx.json               # CycloneDX SBOM (syft or its container)
 uv run pre-commit install                       # gitleaks, ruff, mypy, licence gate, no-weights
-uv run python -m triaxis_demo                   # client demo on http://127.0.0.1:8080
+uv run python -m triaxis_demo                   # client demo on http://127.0.0.1:8080 (mock mode)
+TRIAXIS_INFERENCE_MODE=real TRIAXIS_LLM_URL=http://127.0.0.1:8000 uv run python -m triaxis_demo
+uv run python -m tools.backup --help             # backup/verify/restore/prune (runbook: docs/runbooks/backup-restore.md)
 ```
 
 CI (`.ci/workflows/ci.yml`, copied to `.github/` and `.forgejo/`): lint,
@@ -54,7 +57,14 @@ copy it to both mirrors.
   (TokenValidator, JwksCache, authorize, require_scope) · `tracing`
   (AllowListSpanExporter, LatencyMetrics) · `secrets` (OpenBao/File providers)
   · `runtime` (harden_process) · `http` (middleware, error handlers,
-  create_base_app with /healthz and /readyz).
+  create_base_app with /healthz and /readyz) · `taxonomy` (levels, tags,
+  decisions, destinations, reason codes) · `classification` (deterministic
+  detectors, `Classifier`, `redact`) · `policy` (`HandlingPolicy`,
+  `PolicyEngine.enforce`, fail closed) · `inference` (mock/real mode,
+  OpenAI-compatible LLM/STT/TTS adapters, model gate).
+- `config/policies/` — versioned data-handling policies (ADR 0020).
+- `config/backup/backup-spec.yaml` + `tools/backup.py` — encrypted, integrity-
+  checked backups and isolated restores (ADR 0022).
 - `services/demo/` — `triaxis_demo`: local client-demo prototype (ADR 0019).
   FastAPI + static UI (plain JS, no build, no external requests), Quantum Seal
   brand colours. Mock engines in `mocks.py` (to be replaced by M2 services),
@@ -88,6 +98,14 @@ copy it to both mirrors.
    `from __future__ import annotations`.
 8. Small commits; no secrets, weights or customer data. Tests for every
    contract rule.
+9. **Classify before processing.** Any new path that sends content to a model,
+   store, export or backup calls `PolicyEngine.enforce(text, ctx, Destination.X)`
+   and respects the decision; blocked content must never reach the adapter.
+10. **Never fake inference.** Real mode has no mock fallback; unapproved models
+    fail closed. Do not mark capabilities verified without executed evidence
+    (update `docs/status/capability-matrix.md`).
+11. Test data is synthetic (`tests/support/synthetic.py`); secret-shaped strings
+    are assembled at runtime. No invisible/bidi characters in source.
 
 ## Known environment notes
 

@@ -69,6 +69,13 @@ mapped to OWASP ASVS 4.0.3 Level 2 and the OWASP Top 10 for LLM Applications
 | D3 | JWKS refresh | Unknown-`kid` refresh storm | D | ≤ 1 refresh per 30 s; stale keys served ≤ 1 h | `JwksCache` | ✅ M1 |
 | E1 | Containers | Container escape / privilege escalation | E | non-root, read-only fs, no capabilities, seccomp RuntimeDefault, no shell, PSS restricted | images (M2), k8s (M6) | ⏳ |
 | E2 | Token scope | Wildcard / cross-tenant scope | E | no wildcards; malformed or cross-tenant scope rejects the whole token | auth | ✅ M1 |
+| I8 | Inference boundary | Sensitive data sent to a model or returned unmasked | I | deterministic classification + versioned policy before every model call; redaction before the adapter; credentials blocked; output masked segment by segment (ADR 0020) | `classification`, `policy`, demo pipeline | ✅ M2 (in-process) |
+| I9 | Classification | Client downgrades a label or policy missing | I/E | client may only raise level; no downgrade API; missing policy/engine error fails closed (503) | `policy` | ✅ M2 |
+| T5 | Model endpoint | Unapproved or swapped model serves traffic | T | registry + licence gate checked before any call; served name must equal registry id; revision pinned at deployment (ADR 0021) | `inference`, `RegistryApproval` | ✅ gate / ⏳ deployment pinning |
+| D4 | Model endpoint | Slow/hung upstream, retry storms, duplicated output | D | connect/read/total timeouts; bounded retries before output only; cancellation closes upstream | `inference` | ✅ M2 (vs fake server) |
+| I10 | Backups | Backups retain customer content or secrets | I | scope excludes transient content; denied types; restricted tags fail the backup; envelope encryption; key outside backup root (ADR 0022) | `tools/backup.py` | ✅ M2 |
+| T6 | Backups | Tampered or malicious backup restored | T/E | HMAC manifest, archive hash, GCM, per-file hashes; safe extraction; isolated target by default; two-person in-place restore | `tools/backup.py` | ✅ M2 |
+| S4 | Source code | Trojan Source (hidden bidi characters) | T | repository test rejects invisible/bidi control characters | `test_no_hidden_characters.py` | ✅ M2 |
 
 ## 4. OWASP ASVS 4.0.3 Level 2 mapping
 
@@ -94,8 +101,8 @@ mapped to OWASP ASVS 4.0.3 Level 2 and the OWASP Top 10 for LLM Applications
 | ID | Risk | Control | Status |
 |---|---|---|---|
 | LLM01 | Prompt injection | input classifier + heuristics (AR/EN/mixed), system-prompt isolation, garak/promptfoo suites | ⏳ M3/M9 |
-| LLM02 | Sensitive information disclosure | PII masking in/out, zero retention, no training on customer data | ✅ (retention, M1) / ⏳ M3 |
-| LLM03 | Supply chain | model registry, licence gate, safetensors only, sha256, signed artefacts | ✅ M1 / ⏳ M6 |
+| LLM02 | Sensitive information disclosure | deterministic classification + policy (redact/block) on input and output, zero retention, no training on customer data | ✅ M2 (classification) / ⏳ M3 (Presidio) |
+| LLM03 | Supply chain | model registry, licence gate (now also gating inference), safetensors only, sha256, signed artefacts | ✅ M1–M2 / ⏳ M6 |
 | LLM04 | Data and model poisoning | fine-tuning only on registered `licensed`/`consented` datasets; never platform traffic | ✅ M1 (gate) |
 | LLM05 | Improper output handling | outputs treated as untrusted by tenants; topic policy; no tool execution in Triaxis | ⏳ M3 |
 | LLM06 | Excessive agency | Triaxis exposes no tools/actions; reference voice pipeline has no side effects (ADR 0015) | ✅ by design |
@@ -122,3 +129,8 @@ mapped to OWASP ASVS 4.0.3 Level 2 and the OWASP Top 10 for LLM Applications
 7. **Starlette multipart** spools uploads over 1 MiB to a temp file; this lands
    on the tmpfs `TMPDIR` (enforced), and M2 services must cap uploads and
    prefer non-multipart bodies where possible.
+8. **Real inference unverified**: adapters are proven against a fake
+   OpenAI-compatible server only; no approved model or endpoint exists yet.
+9. **Classification coverage**: pattern detection misses names, addresses and
+   free-text sensitive categories (Presidio planned, M3).
+10. **Backup DR**: no scheduler, replication, WORM or measured RPO/RTO yet.
