@@ -47,6 +47,11 @@ class ErrorCode(StrEnum):
     NOT_READY = "not_ready"
     SERVICE_UNAVAILABLE = "service_unavailable"
     INTERNAL_ERROR = "internal_error"
+    POLICY_BLOCKED = "policy_blocked"
+    CLASSIFICATION_UNAVAILABLE = "classification_unavailable"
+    MODEL_UNAVAILABLE = "model_unavailable"
+    UPSTREAM_ERROR = "upstream_error"
+    FORBIDDEN = "forbidden"
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +110,25 @@ CATALOG: dict[ErrorCode, ErrorSpec] = {
     ),
     ErrorCode.SERVICE_UNAVAILABLE: ErrorSpec(
         503, ErrorType.UNAVAILABLE, "The service is temporarily unavailable."
+    ),
+    ErrorCode.POLICY_BLOCKED: ErrorSpec(
+        422,
+        ErrorType.INVALID_REQUEST,
+        "The request content is not permitted by the data-handling policy.",
+    ),
+    ErrorCode.CLASSIFICATION_UNAVAILABLE: ErrorSpec(
+        503,
+        ErrorType.UNAVAILABLE,
+        "Data classification is unavailable; the request was not processed.",
+    ),
+    ErrorCode.MODEL_UNAVAILABLE: ErrorSpec(
+        503, ErrorType.UNAVAILABLE, "The model service is unavailable."
+    ),
+    ErrorCode.UPSTREAM_ERROR: ErrorSpec(
+        502, ErrorType.UNAVAILABLE, "The model service returned an invalid response."
+    ),
+    ErrorCode.FORBIDDEN: ErrorSpec(
+        403, ErrorType.PERMISSION, "The operator is not authorised for this operation."
     ),
     ErrorCode.INTERNAL_ERROR: ErrorSpec(500, ErrorType.INTERNAL, "An internal error occurred."),
 }

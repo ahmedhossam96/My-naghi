@@ -1,0 +1,30 @@
+# Stricter policy variant, e.g. for brands handling payments or sensitive cases.
+schema_version: 1
+policy_id: strict
+version: "2026-10-09.1"
+owner: Quantum Seal security architecture
+baseline:
+  llm: confidential
+  tts: internal
+  stt: confidential
+  voice: confidential
+  batch: confidential
+levels:
+  inference: {public: allow, internal: allow, confidential: allow, restricted: block}
+  client_response: {public: allow, internal: allow, confidential: allow, restricted: redact}
+  persistence: {public: allow, internal: allow, confidential: block, restricted: block}
+  export: {public: allow, internal: restrict, confidential: block, restricted: block}
+  backup: {public: allow, internal: allow, confidential: block, restricted: block}
+tags:
+  inference:
+    credential: block
+    phone_number: redact
+    email_address: redact
+  client_response:
+    credential: redact
+workloads:
+  restricted: [llm, stt, tts, voice]
+controls:
+  confidential: [approved_inference_only, encrypt_at_rest, no_telemetry_content, no_export]
+  restricted: [approved_inference_only, encrypt_at_rest, no_telemetry_content, no_export, no_persistence]
+brands: {}

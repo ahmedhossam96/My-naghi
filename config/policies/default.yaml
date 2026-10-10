@@ -1,0 +1,65 @@
+# Default Triaxis data-handling policy (ADR 0020). Versioned; changes are reviewed in Git.
+# Decisions: allow < redact < restrict < block. The strictest applicable rule wins.
+schema_version: 1
+policy_id: default
+version: "2026-10-09.1"
+owner: Quantum Seal security architecture (to be co-owned with the tenant's DPO)
+
+# Minimum level per workload before any detection. Voice and transcripts are
+# personal data by nature, so speech workloads start at confidential.
+baseline:
+  llm: internal
+  tts: internal
+  stt: confidential
+  voice: confidential
+  batch: confidential
+
+levels:
+  inference:
+    public: allow
+    internal: allow
+    confidential: allow       # approved self-hosted models only (control below)
+    restricted: redact        # identifiers replaced by [TAG] tokens before the model
+  client_response:            # back to the authenticated caller who supplied it
+    public: allow
+    internal: allow
+    confidential: allow
+    restricted: redact        # model output carrying restricted identifiers is masked
+  persistence:                # authorised business-record stores only
+    public: allow
+    internal: allow
+    confidential: restrict
+    restricted: block
+  export:
+    public: allow
+    internal: allow
+    confidential: restrict
+    restricted: block
+  backup:                     # backups never carry customer content (ADR 0022)
+    public: allow
+    internal: allow
+    confidential: block
+    restricted: block
+
+tags:
+  inference:
+    credential: block         # never send secrets to a model, not even redacted
+    payment_card: redact
+    iban: redact
+    national_id: redact
+  client_response:
+    credential: redact
+  persistence:
+    credential: block
+  export:
+    credential: block
+
+# Which workloads may receive data at a given level (anything else: block).
+workloads:
+  restricted: [llm, stt, tts, voice]   # restricted data never enters batch analytics
+
+controls:
+  confidential: [approved_inference_only, encrypt_at_rest, no_telemetry_content]
+  restricted: [approved_inference_only, encrypt_at_rest, no_telemetry_content, no_export, no_persistence]
+
+brands: {}

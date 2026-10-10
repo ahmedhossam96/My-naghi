@@ -1,0 +1,47 @@
+# MY NAGHI Motors (KSA). Voice-agent access is limited to the brands that list
+# the `voice` workload below: mynaghi.sa, BMW and MINI. Quotas are initial
+# engineering values, to be confirmed with the tenant.
+schema_version: 1
+id: mynaghi
+display_name: MY NAGHI Motors
+data_residency: SA
+approved_origin_countries: [SA, US, CN]
+data_policy: default
+models:
+  stt: whisper-large-v3
+  tts: chatterbox-multilingual
+  llm_voice: qwen3.5-35b-a3b
+  llm_chat: qwen3.5-27b
+batch_deadline:
+  kind: same_day
+brands:
+  - id: mynaghi-sa
+    display_name: mynaghi.sa
+    guardrail_policy: automotive-retail
+    workloads: [stt, tts, llm, voice, batch]
+    quotas:
+      stt: {requests_per_minute: 600, concurrent_streams: 50, audio_seconds_per_hour: 180000}
+      tts: {requests_per_minute: 600, concurrent_streams: 50}
+      llm: {requests_per_minute: 1200, concurrent_streams: 100, tokens_per_minute: 400000}
+      voice: {requests_per_minute: 120, concurrent_streams: 40}
+      batch: {requests_per_minute: 60, concurrent_streams: 4, batch_jobs_per_day: 5000}
+  - id: bmw
+    display_name: BMW
+    guardrail_policy: automotive-retail
+    workloads: [stt, tts, llm, voice, batch]
+    quotas:
+      stt: {requests_per_minute: 300, concurrent_streams: 30}
+      tts: {requests_per_minute: 300, concurrent_streams: 30}
+      llm: {requests_per_minute: 600, concurrent_streams: 60, tokens_per_minute: 200000}
+      voice: {requests_per_minute: 60, concurrent_streams: 20}
+      batch: {requests_per_minute: 30, concurrent_streams: 2, batch_jobs_per_day: 2000}
+  - id: mini
+    display_name: MINI
+    guardrail_policy: automotive-retail
+    workloads: [stt, tts, llm, voice, batch]
+    quotas:
+      stt: {requests_per_minute: 300, concurrent_streams: 30}
+      tts: {requests_per_minute: 300, concurrent_streams: 30}
+      llm: {requests_per_minute: 600, concurrent_streams: 60, tokens_per_minute: 200000}
+      voice: {requests_per_minute: 60, concurrent_streams: 20}
+      batch: {requests_per_minute: 30, concurrent_streams: 2, batch_jobs_per_day: 2000}

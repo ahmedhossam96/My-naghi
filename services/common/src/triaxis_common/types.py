@@ -28,6 +28,9 @@ RequestId = Annotated[str, StringConstraints(pattern=REQUEST_ID_PATTERN, strict=
 Identifier = Annotated[str, StringConstraints(pattern=IDENTIFIER_PATTERN, strict=True)]
 LoggerName = Annotated[str, StringConstraints(pattern=LOGGER_NAME_PATTERN, strict=True)]
 ModelId = Annotated[str, StringConstraints(pattern=MODEL_ID_PATTERN, strict=True)]
+# e.g. "default@2026-10-09.1"; slug-like, never free text.
+POLICY_VERSION_PATTERN = r"^[a-z0-9][a-z0-9._@-]{0,79}$"
+PolicyVersion = Annotated[str, StringConstraints(pattern=POLICY_VERSION_PATTERN, strict=True)]
 
 
 class Workload(StrEnum):

@@ -7,10 +7,24 @@ build, even if every individual test passed.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import pytest
 
 from tests.support import log_gate
+from tests.support.logs import LogCapture
 from triaxis_common import logging as tlog
+
+
+@pytest.fixture
+def logs() -> Iterator[LogCapture]:
+    """Capture log output of one test (the session schema gate still sees it)."""
+    capture = LogCapture()
+    previous = tlog.set_sink(capture)
+    try:
+        yield capture
+    finally:
+        tlog.set_sink(previous)
 
 
 def pytest_configure() -> None:

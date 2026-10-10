@@ -225,6 +225,12 @@
       "title": "Brands",
       "type": "array"
     },
+    "data_policy": {
+      "default": "default",
+      "pattern": "^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$",
+      "title": "Data Policy",
+      "type": "string"
+    },
     "data_residency": {
       "pattern": "^[A-Z]{2}$",
       "title": "Data Residency",

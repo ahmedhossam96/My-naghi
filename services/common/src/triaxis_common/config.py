@@ -206,6 +206,7 @@ class TenantConfig(_Strict):
     models: ModelSelection
     brands: Annotated[list[BrandConfig], Field(min_length=1)]
     batch_deadline: BatchDeadline = BatchDeadline()
+    data_policy: Slug = "default"  # config/policies/<id>.yaml (ADR 0020)
 
     @field_validator("brands")
     @classmethod

@@ -34,11 +34,14 @@ from pydantic import (
 
 from triaxis_common import context
 from triaxis_common.errors import ErrorCode
+from triaxis_common.taxonomy import Classification, DataTag, Decision, InferenceMode, ReasonCode
 from triaxis_common.types import (
     LOGGER_NAME_PATTERN,
     Identifier,
     Lane,
     LoggerName,
+    ModelId,
+    PolicyVersion,
     RequestId,
     Slug,
     Workload,
@@ -103,6 +106,19 @@ class Event(StrEnum):
     RUNTIME_GUARD_FAILED = "runtime_guard_failed"
     THIRD_PARTY_LOG = "third_party_log"
     LOG_SCHEMA_VIOLATION = "log_schema_violation"
+    CLASSIFICATION_DECISION = "classification_decision"
+    INFERENCE_COMPLETED = "inference_completed"
+    INFERENCE_FAILED = "inference_failed"
+    MODEL_CHECK = "model_check"
+    BACKUP_STARTED = "backup_started"
+    BACKUP_COMPLETED = "backup_completed"
+    BACKUP_FAILED = "backup_failed"
+    BACKUP_VERIFIED = "backup_verified"
+    BACKUP_PRUNED = "backup_pruned"
+    RESTORE_STARTED = "restore_started"
+    RESTORE_COMPLETED = "restore_completed"
+    RESTORE_FAILED = "restore_failed"
+    AUTHZ_DENIED = "authz_denied"
 
 
 class Stage(StrEnum):
@@ -149,6 +165,17 @@ class LogRecord(BaseModel):
     tokens_out: NonNegativeInt | None = None
     error_class: Identifier | None = None
     error_code: ErrorCode | None = None
+    # Data classification and inference metadata (ADR 0020, 0021). Labels only.
+    classification: Classification | None = None
+    decision: Decision | None = None
+    data_tags: list[DataTag] | None = None
+    reason_codes: list[ReasonCode] | None = None
+    policy_version: PolicyVersion | None = None
+    inference_mode: InferenceMode | None = None
+    model: ModelId | None = None
+    # Backup and restore jobs (ADR 0022).
+    job_id: RequestId | None = None
+    operator: Slug | None = None
 
 
 ALLOWED_FIELDS: Final[frozenset[str]] = frozenset(LogRecord.model_fields)
@@ -218,6 +245,13 @@ def validate_log_line(line: str) -> bool:
 def set_audit_hook(hook: Sink | None) -> None:
     """Install a callback that receives every emitted line (test schema gate)."""
     _state.audit_hook = hook
+
+
+def set_sink(sink: Sink) -> Sink:
+    """Replace the output sink (e.g. stderr for CLIs); returns the previous one."""
+    with _state.lock:
+        previous, _state.sink = _state.sink, sink
+    return previous
 
 
 def add_listener(listener: Sink) -> None:
