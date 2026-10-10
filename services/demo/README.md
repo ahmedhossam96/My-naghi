@@ -21,7 +21,22 @@ Runs fully offline: no CDN, no external requests, no model downloads. Binds to
 | 04 | Riyadh / Jeddah | Option A/B capacity rules (`ResilienceConfig`) | site health, failover timeline, traffic and GPU figures |
 | 05 | Tenants & Audit | tenant/brand config, scopes, quotas, allow-list audit log | — |
 
-Every panel shows a **Live**, **Simulated** or **Demo Data** label.
+Every panel shows a **Live**, **Simulated** or **Demo Data** label, and the
+header shows the inference mode.
+
+## Inference modes and classification (Milestone 2a)
+
+- **Mock mode (default):** model output comes from labelled simulated adapters.
+- **Real mode:** `TRIAXIS_INFERENCE_MODE=real` with `TRIAXIS_LLM_URL`,
+  `TRIAXIS_STT_URL`, `TRIAXIS_TTS_URL` pointing at self-hosted
+  OpenAI-compatible servers. Models must be approved in the registry; otherwise
+  requests fail with `model_unavailable`. There is no fallback to mock.
+- Every chat message, audio input, transcript, TTS input and model output is
+  classified and enforced against the tenant's data-handling policy
+  (`config/policies/`). The **Classification** tab shows decisions for
+  synthetic samples; the **Voice Agent** tab runs one STT → LLM → TTS turn.
+- `TRIAXIS_BACKUP_DIR=<root>` shows live backup status in the Riyadh / Jeddah
+  view (see `docs/runbooks/backup-restore.md`).
 
 ## Demo script (5 minutes)
 

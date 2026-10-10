@@ -4,6 +4,7 @@ import io
 import json
 import wave
 from collections.abc import Iterator
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -39,7 +40,7 @@ def _session(client: TestClient, brand: str = "brand-a") -> dict[str, str]:
     return {"Authorization": f"Bearer {body['token']}"}
 
 
-def _sse_events(text: str) -> list[dict[str, object]]:
+def _sse_events(text: str) -> list[dict[str, Any]]:
     return [json.loads(chunk.removeprefix("data: ")) for chunk in text.strip().split("\n\n")]
 
 
@@ -134,8 +135,9 @@ def test_chat_streams_and_content_never_reaches_logs_or_audit(client: TestClient
     assert res.status_code == 200
     assert res.headers["content-type"].startswith("text/event-stream")
     events = _sse_events(res.text)
+    assert events[0]["meta"]["mode"] == "mock"
     assert events[-1]["done"] is True
-    assert events[-1]["brand"] == "brand-a"
+    assert events[-1]["mode"] == "mock"
     reply = "".join(str(e.get("delta", "")) for e in events)
     assert reply == MockLlm.reply_for("Book a service")
     records = client.get("/api/audit").json()["records"]
@@ -202,7 +204,12 @@ def test_stt_with_sample_wav(client: TestClient) -> None:
     assert body["audio_format"] == "wav"
     assert body["duration_ms"] == 2000
     assert is_arabic(body["text"])
-    assert body["provenance"] == {"transcript": "simulated", "validation": "live"}
+    assert body["provenance"] == {
+        "transcript": "simulated",
+        "validation": "live",
+        "classification": "live",
+    }
+    assert body["classification"]["audio"]["data_tags"] == ["voice_recording"]
 
 
 def test_stt_rejects_non_audio_by_magic_bytes(client: TestClient) -> None:
@@ -237,7 +244,8 @@ def test_tts_returns_wav(client: TestClient) -> None:
     )
     assert res.status_code == 200
     assert res.headers["content-type"] == "audio/wav"
-    assert res.headers["x-triaxis-sentences"] == "3"
+    assert res.headers["x-triaxis-mode"] == "mock"
+    assert res.headers["x-triaxis-decision"] == "allow"
     assert sniff_audio(res.content) is AudioFormat.WAV
 
 

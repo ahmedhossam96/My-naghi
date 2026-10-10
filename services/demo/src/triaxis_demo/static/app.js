@@ -104,7 +104,7 @@
     const tenantSelect = document.getElementById("tenant-select");
     clear(tenantSelect);
     for (const t of state.tenants) tenantSelect.appendChild(h("option", { value: t.id, text: t.display_name }));
-    const preferred = state.tenants.find((t) => t.id === "demo-motors") || state.tenants[0];
+    const preferred = state.tenants.find((t) => t.id === "mynaghi") || state.tenants[0];
     tenantSelect.value = preferred.id;
     tenantSelect.addEventListener("change", () => selectTenant(tenantSelect.value));
     document.getElementById("brand-select").addEventListener("change", (e) => startSession(e.target.value));
@@ -127,6 +127,17 @@
     const chip = document.getElementById("session-chip");
     chip.textContent = `Token: ${state.session.scopes.length} scopes · 15 min`;
     chip.title = state.session.scopes.join("\n");
+    try {
+      state.inference = await apiJson("/api/inference/status", { auth: true });
+    } catch (err) {
+      state.inference = null;
+    }
+    const modeEl = document.getElementById("mode-indicator");
+    if (modeEl) {
+      const real = state.inference && state.inference.mode === "real";
+      modeEl.textContent = state.inference ? (real ? "Real inference mode" : "Mock inference mode (simulated output)") : "Inference status unavailable";
+      modeEl.className = `mode-indicator ${real ? "real" : "mock"}`;
+    }
     render();
   }
 
@@ -251,10 +262,32 @@
 
   let playgroundTab = "chat";
 
+  /** Provenance badge for model output: "simulated" in mock mode, "live" for real inference. */
+  function modeBadge() {
+    return badge(state.inference && state.inference.mode === "real" ? "live" : "simulated");
+  }
+
+  /** Compact classification view (labels and codes only, never content). */
+  function classificationView(c, label) {
+    if (!c) return null;
+    const decisionClass = { allow: "ok", redact: "medium", restrict: "high", block: "critical" }[c.decision] || "low";
+    return h("div", { class: "classif" },
+      label ? h("span", { class: "classif-label", text: label }) : null,
+      pill(levelPill(c.level), titleCase(c.level)),
+      pill(decisionClass, `Decision: ${titleCase(c.decision)}`),
+      (c.data_tags || []).map((t) => h("span", { class: "chip mono", text: t })),
+      h("span", { class: "caption inline", text: c.policy_version || "" }));
+  }
+
+  function levelPill(level) {
+    return { public: "low", internal: "medium", confidential: "high", restricted: "critical" }[level] || "low";
+  }
+
   async function renderPlayground(root) {
     clear(root);
     const brand = currentBrand();
-    const tabs = [["chat", "Chat", "llm"], ["stt", "Speech-to-Text", "stt"], ["tts", "Text-to-Speech", "tts"]];
+    const tabs = [["chat", "Chat"], ["stt", "Speech-to-Text"], ["tts", "Text-to-Speech"],
+      ["voice", "Voice Agent"], ["classify", "Classification"]];
     const panel = h("div");
     const tabBar = h("div", { class: "tabs", role: "tablist" }, tabs.map(([id, label]) =>
       h("button", { class: "tab", role: "tab", "aria-selected": String(id === playgroundTab),
@@ -266,7 +299,7 @@
       h("div", { class: "scope-strip" }, "Calling as",
         h("span", { class: "chip", text: `${state.tenant.id} · ${brand.id}` }), "with scopes",
         state.session.scopes.map((s) => h("span", { class: "chip mono", text: s }))),
-      h("p", { class: "caption", text: "Each request carries a 15-minute ES256 token. The token is signed by a demo identity provider (simulated Keycloak) and validated by the real Triaxis TokenValidator and scope check." }),
+      h("p", { class: "caption", text: "Each request carries a 15-minute ES256 token. The token is signed by a demo identity provider (simulated Keycloak) and validated by the real Triaxis TokenValidator and scope check. Every input is classified and checked against the tenant's data-handling policy before any model call." }),
       otherBrand ? h("div", { class: "btn-row" },
         h("button", { class: "btn secondary small", text: `Try to call as ${otherBrand.display_name} with this token`,
           onclick: async () => {
@@ -282,19 +315,41 @@
           } })) : null,
       scopeResult);
 
-    root.appendChild(h("div", { class: "grid" }, strip, h("div", { class: "card" }, tabBar, panel)));
-    const allowed = new Set(brand.workloads);
-    const needed = { chat: "llm", stt: "stt", tts: "tts" }[playgroundTab];
-    if (!allowed.has(needed)) {
-      panel.appendChild(h("p", { class: "result", text: `${brand.display_name} has no "${needed}" workload. Requests would be denied with HTTP 403 (try it: the API enforces this, not the UI).` }));
+    root.appendChild(h("div", { class: "grid" }, strip, inferenceCard(), h("div", { class: "card" }, tabBar, panel)));
+    const needed = { chat: "llm", stt: "stt", tts: "tts", voice: "voice", classify: null }[playgroundTab];
+    if (needed && !brand.workloads.includes(needed)) {
+      panel.appendChild(h("p", { class: "result", text: `${brand.display_name} has no "${needed}" workload. Requests are denied with HTTP 403 by the API (try it: the server enforces this, not the UI).` }));
     }
-    ({ chat: chatPanel, stt: sttPanel, tts: ttsPanel })[playgroundTab](panel);
+    ({ chat: chatPanel, stt: sttPanel, tts: ttsPanel, voice: voicePanel, classify: classifyPanel })[playgroundTab](panel);
+  }
+
+  function inferenceCard() {
+    const inf = state.inference;
+    if (!inf) return card("Inference Services", null, h("p", { class: "empty", text: "Status unavailable." }));
+    const rows = Object.entries(inf.services).map(([name, s]) => h("tr", {},
+      h("td", { text: name.replace("_", " ").toUpperCase() }),
+      h("td", { class: "mono", text: s.model_id || "—" }),
+      h("td", {}, pill(serviceClass(s.status), titleCase(s.status))),
+      h("td", { class: "mono", text: s.reason || "" })));
+    return card(inf.mode === "real" ? "Inference Services · Real Mode" : "Inference Services · Mock Mode", "live",
+      h("div", { class: "table-wrap" }, h("table", {},
+        h("thead", {}, h("tr", {}, ["Profile", "Model (tenant config)", "Status", "Reason"].map((x) => h("th", { text: x })))),
+        h("tbody", {}, rows))),
+      h("p", { class: "caption", text: inf.mode === "real"
+        ? "Real mode: requests go to the configured self-hosted endpoints. Unapproved or unreachable models fail closed; there is no fallback to simulated output."
+        : "Mock mode: model output is simulated by labelled stand-ins. Classification, policy, auth and validation are real. Start the demo with TRIAXIS_INFERENCE_MODE=real to use approved self-hosted models." }));
+  }
+
+  function serviceClass(status) {
+    return { ready: "ok", simulated: "medium", unapproved: "high", not_configured: "low",
+      unreachable: "critical", model_not_served: "high", degraded: "high" }[status] || "low";
   }
 
   function chatPanel(panel) {
     const transcript = h("div", { class: "transcript", "aria-live": "polite" });
     const input = h("textarea", { dir: "auto", placeholder: "Ask a question in English or Arabic…", "aria-label": "Message" });
     const send = h("button", { class: "btn", text: "Send" });
+    const lastClass = h("div", { class: "classif-box" });
     const drawAll = () => {
       clear(transcript);
       if (!state.chat.length) transcript.appendChild(h("p", { class: "empty", text: "No messages yet. Messages exist only in this browser tab." }));
@@ -311,12 +366,17 @@
       drawAll();
       const body = reply.node.querySelector(".body");
       const meta = reply.node.querySelector(".meta");
-      meta.textContent = "Streaming…";
+      meta.textContent = "Classifying and streaming…";
+      clear(lastClass);
       try {
         const res = await api("/api/chat", { method: "POST", auth: true,
-          json: { messages: state.chat.filter((m) => m !== reply).map(({ role, content }) => ({ role, content })) } });
+          json: { messages: state.chat.filter((m) => m !== reply && !m.failed).map(({ role, content }) => ({ role, content })) } });
         if (!res.ok) {
           const err = await res.json();
+          if (res.headers.get("x-triaxis-decision")) {
+            lastClass.appendChild(classificationView({ level: res.headers.get("x-triaxis-classification"),
+              decision: res.headers.get("x-triaxis-decision"), data_tags: [] }, "Input"));
+          }
           throw Object.assign(new Error(err.error.message), { body: err, status: res.status });
         }
         const reader = res.body.getReader();
@@ -331,15 +391,21 @@
             const line = buffer.slice(0, idx).replace(/^data: /, "");
             buffer = buffer.slice(idx + 2);
             const evt = JSON.parse(line);
+            if (evt.meta) lastClass.appendChild(classificationView(evt.meta.input_classification, "Input"));
             if (evt.delta) { reply.content += evt.delta; body.textContent = reply.content; transcript.scrollTop = transcript.scrollHeight; }
-            if (evt.done) meta.textContent = `${evt.model} · first token ${evt.ttft_ms} ms · ${evt.tokens_out} tokens · not stored`;
+            if (evt.error) throw Object.assign(new Error(evt.error.message), { body: { error: evt.error }, status: "stream" });
+            if (evt.done) {
+              meta.textContent = `${evt.mode === "real" ? "real model" : "simulated"} · ${evt.model} · first token ${evt.ttft_ms} ms · ${evt.tokens_out} tokens · not stored`;
+              lastClass.appendChild(classificationView(evt.output_classification, "Output"));
+            }
           }
         }
       } catch (err) {
         body.textContent = errorText(err);
         reply.node.classList.add("error");
+        reply.failed = true;
+        state.chat[state.chat.length - 2].failed = true;
         meta.textContent = "";
-        state.chat.pop();
       } finally {
         send.disabled = false;
       }
@@ -347,16 +413,21 @@
 
     send.addEventListener("click", () => { const t = input.value; input.value = ""; submit(t); });
     input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send.click(); } });
-    panel.appendChild(h("div", { class: "card-head" }, h("h3", { text: "Chat Completions" }), badge("simulated")));
+    panel.appendChild(h("div", { class: "card-head" }, h("h3", { text: "Chat Completions" }), modeBadge()));
     panel.appendChild(transcript);
+    panel.appendChild(lastClass);
     panel.appendChild(h("div", { class: "result-input" }, input));
     panel.appendChild(h("div", { class: "btn-row" }, send,
-      h("button", { class: "btn secondary small", text: "Sample: service booking (English)",
+      h("button", { class: "btn secondary small", text: "Sample: service booking",
         onclick: () => submit("I need to book a service appointment for my car next week. What do you need from me?") }),
       h("button", { class: "btn secondary small", text: "Sample: Arabic",
         onclick: () => submit("أريد حجز موعد صيانة لسيارتي الأسبوع القادم، ما المطلوب مني؟") }),
-      h("button", { class: "btn secondary small", text: "Clear", onclick: () => { state.chat = []; drawAll(); } })));
-    panel.appendChild(h("p", { class: "caption", text: "Replies come from a deterministic mock model that streams token by token over SSE. Validation, auth, size limits and logging are the real Milestone 1 code. Open Tenants & Audit afterwards: the request is logged, its text is not." }));
+      h("button", { class: "btn secondary small", text: "Synthetic ID (redacted)",
+        onclick: () => submit("My national ID is 1012345672, please confirm my booking.") }),
+      h("button", { class: "btn secondary small", text: "Synthetic secret (blocked)",
+        onclick: () => submit("Here is my password: Demo-Only-Pass-123") }),
+      h("button", { class: "btn secondary small", text: "Clear", onclick: () => { state.chat = []; clear(lastClass); drawAll(); } })));
+    panel.appendChild(h("p", { class: "caption", text: "The synthetic samples show policy enforcement: identifiers are replaced by tokens before the model is called; credentials are blocked and never reach the model. The audit log records the decision, never the text." }));
     drawAll();
   }
 
@@ -365,32 +436,12 @@
       h("span", { class: "body", text: m.content }), h("span", { class: "meta" }));
   }
 
-  function sttPanel(panel) {
-    const language = h("select", { "aria-label": "Language" },
-      h("option", { value: "en", text: "English" }), h("option", { value: "ar", text: "Arabic" }));
-    const out = h("div", { class: "result", dir: "auto", text: "Record, upload or use the sample clip." });
+  /** Recording / upload / sample controls shared by STT and the voice agent. */
+  function audioControls(onAudio) {
     const fileInput = h("input", { type: "file", accept: "audio/*", hidden: true });
     const recordBtn = h("button", { class: "btn", text: "Record" });
     let recorder = null;
     let chunks = [];
-
-    async function transcribe(blob, label) {
-      out.className = "result";
-      out.textContent = `Sending ${label} (${blob.size} bytes)…`;
-      try {
-        const res = await api(`/api/stt?language=${language.value}`, { method: "POST", auth: true,
-          headers: { "Content-Type": "application/octet-stream" }, body: blob });
-        const body = await res.json();
-        if (!res.ok) throw Object.assign(new Error(""), { body, status: res.status });
-        out.className = "result success";
-        out.textContent = `${body.text}\n\nformat ${body.audio_format} (detected from file header) · ` +
-          `${body.duration_ms !== null ? `${body.duration_ms} ms · ` : ""}${body.bytes} bytes · transcript simulated`;
-      } catch (err) {
-        out.className = "result error";
-        out.textContent = errorText(err);
-      }
-    }
-
     recordBtn.addEventListener("click", async () => {
       if (recorder && recorder.state === "recording") { recorder.stop(); return; }
       try {
@@ -401,30 +452,69 @@
         recorder.onstop = () => {
           stream.getTracks().forEach((t) => t.stop());
           recordBtn.textContent = "Record";
-          recordBtn.classList.remove("recording");
-          transcribe(new Blob(chunks, { type: recorder.mimeType }), "recording");
+          onAudio(new Blob(chunks, { type: recorder.mimeType }), "recording");
         };
         recorder.start();
         recordBtn.textContent = "Stop recording";
-        out.textContent = "Recording… audio stays in this tab until you stop.";
       } catch (err) {
-        out.className = "result error";
-        out.textContent = `Microphone unavailable: ${err.message}`;
+        onAudio(null, `Microphone unavailable: ${err.message}`);
       }
     });
-    fileInput.addEventListener("change", () => { if (fileInput.files[0]) transcribe(fileInput.files[0], fileInput.files[0].name); });
-
-    panel.appendChild(h("div", { class: "card-head" }, h("h3", { text: "Batch Transcription" }), badge("simulated")));
-    panel.appendChild(h("div", { class: "btn-row" }, language, recordBtn,
+    fileInput.addEventListener("change", () => { if (fileInput.files[0]) onAudio(fileInput.files[0], fileInput.files[0].name); });
+    return [recordBtn,
       h("button", { class: "btn secondary", text: "Upload audio", onclick: () => fileInput.click() }), fileInput,
       h("button", { class: "btn secondary", text: "Use sample clip", onclick: async () => {
         const res = await fetch("/api/stt/sample");
-        transcribe(await res.blob(), "sample clip");
-      } }),
+        onAudio(await res.blob(), "sample clip");
+      } })];
+  }
+
+  function sttPanel(panel) {
+    const language = h("select", { "aria-label": "Language" },
+      h("option", { value: "en", text: "English" }), h("option", { value: "ar", text: "Arabic" }));
+    const analytics = h("input", { type: "checkbox", id: "stt-analytics" });
+    const out = h("div", { class: "result", dir: "auto", text: "Record, upload or use the sample clip." });
+    const classes = h("div", { class: "classif-box" });
+    const analysis = h("div", { class: "result", hidden: true, dir: "auto" });
+
+    async function transcribe(blob, label) {
+      clear(classes);
+      analysis.hidden = true;
+      if (!blob) { out.className = "result error"; out.textContent = label; return; }
+      out.className = "result";
+      out.textContent = `Sending ${label} (${blob.size} bytes)…`;
+      try {
+        const res = await api(`/api/stt?language=${language.value}&analytics=${analytics.checked}`, { method: "POST", auth: true,
+          headers: { "Content-Type": "application/octet-stream" }, body: blob });
+        const body = await res.json();
+        if (!res.ok) throw Object.assign(new Error(""), { body, status: res.status });
+        out.className = "result success";
+        out.textContent = `${body.text}\n\n${body.mode === "real" ? "real model" : "simulated transcript"} · ${body.model} · ` +
+          `format ${body.audio_format} (detected from file header) · ${body.duration_ms !== null ? `${body.duration_ms} ms · ` : ""}${body.bytes} bytes`;
+        classes.appendChild(classificationView(body.classification.audio, "Audio"));
+        classes.appendChild(classificationView(body.classification.transcript, "Transcript"));
+        if (body.analytics) {
+          analysis.hidden = false;
+          analysis.className = body.analytics.status === "completed" ? "result success" : "result error";
+          analysis.textContent = body.analytics.status === "completed"
+            ? `Analytics: ${body.analytics.summary}`
+            : "Analytics blocked by the data-handling policy (the transcript was not sent to the model).";
+        }
+      } catch (err) {
+        out.className = "result error";
+        out.textContent = errorText(err);
+      }
+    }
+
+    panel.appendChild(h("div", { class: "card-head" }, h("h3", { text: "Transcription" }), modeBadge()));
+    panel.appendChild(h("div", { class: "btn-row" }, language, ...audioControls(transcribe),
       h("button", { class: "btn secondary small", text: "Send a non-audio file",
-        onclick: () => transcribe(new Blob(["this is plain text, not audio"]), "text file") })));
+        onclick: () => transcribe(new Blob(["this is plain text, not audio"]), "text file") }),
+      h("label", {}, analytics, " Run analytics (LLM summary)")));
     panel.appendChild(out);
-    panel.appendChild(h("p", { class: "caption", text: "Audio is validated by its magic bytes (WAV, FLAC, OGG, WebM, MP3), never by file name; WAV duration is capped at 60 s. The body is sent raw (no multipart), so nothing is spooled to disk. The transcript is a canned sample." }));
+    panel.appendChild(classes);
+    panel.appendChild(analysis);
+    panel.appendChild(h("p", { class: "caption", text: "Audio is validated by magic bytes, classified (voice recordings start as confidential personal data), transcribed, and the transcript is classified again before it is returned or analysed. Nothing is written to disk; audio and transcripts exist only for the request." }));
   }
 
   function ttsPanel(panel) {
@@ -437,7 +527,7 @@
 
     async function synth() {
       out.className = "result";
-      out.textContent = "Synthesising…";
+      out.textContent = "Classifying and synthesising…";
       try {
         const started = performance.now();
         const res = await api("/api/tts", { method: "POST", auth: true, json: { input: text.value, voice: voice.value } });
@@ -448,21 +538,109 @@
         player.src = url;
         player.hidden = false;
         player.play().catch(() => {});
+        const mode = res.headers.get("x-triaxis-mode");
         out.className = "result success";
-        out.textContent = `${res.headers.get("x-triaxis-sentences")} sentences · ${res.headers.get("x-triaxis-duration-ms")} ms of audio · ` +
-          `${Math.round(performance.now() - started)} ms round trip · tone placeholder, no speech model loaded`;
+        out.textContent = `${mode === "real" ? "real speech model" : "tone placeholder (simulated, no speech model loaded)"} · ` +
+          `input ${res.headers.get("x-triaxis-classification")} / ${res.headers.get("x-triaxis-decision")} · ` +
+          `${Math.round(performance.now() - started)} ms round trip`;
       } catch (err) {
         out.className = "result error";
         out.textContent = errorText(err);
       }
     }
 
-    panel.appendChild(h("div", { class: "card-head" }, h("h3", { text: "Speech Synthesis" }), badge("simulated")));
+    panel.appendChild(h("div", { class: "card-head" }, h("h3", { text: "Speech Synthesis" }), modeBadge()));
     panel.appendChild(text);
     panel.appendChild(h("div", { class: "btn-row" }, voice, h("button", { class: "btn", text: "Synthesise", onclick: synth })));
     panel.appendChild(player);
     panel.appendChild(out);
-    panel.appendChild(h("p", { class: "caption", text: "The mock splits text at sentence boundaries (including Arabic punctuation) and renders one soft tone per word, in memory. A real voice model (Chatterbox Multilingual candidate) replaces it in Milestone 2." }));
+    panel.appendChild(h("p", { class: "caption", text: "Text is classified before synthesis: identifiers are redacted, credentials blocked. In mock mode the audio is a tone per word; in real mode it comes from the approved self-hosted speech model." }));
+  }
+
+  function voicePanel(panel) {
+    const language = h("select", { "aria-label": "Language" },
+      h("option", { value: "en", text: "English" }), h("option", { value: "ar", text: "Arabic" }));
+    const out = h("div", { class: "result", dir: "auto", text: "Record or use the sample clip to run one voice turn." });
+    const classes = h("div", { class: "classif-box" });
+    const player = h("audio", { controls: true, hidden: true });
+
+    async function turn(blob, label) {
+      clear(classes);
+      if (!blob) { out.className = "result error"; out.textContent = label; return; }
+      out.className = "result";
+      out.textContent = `Running voice turn on ${label}…`;
+      try {
+        const res = await api(`/api/voice/turn?language=${language.value}`, { method: "POST", auth: true,
+          headers: { "Content-Type": "application/octet-stream" }, body: blob });
+        const body = await res.json();
+        if (!res.ok) throw Object.assign(new Error(""), { body, status: res.status });
+        const audio = Uint8Array.from(atob(body.audio_base64), (c) => c.charCodeAt(0));
+        player.src = URL.createObjectURL(new Blob([audio], { type: body.media_type }));
+        player.hidden = false;
+        player.play().catch(() => {});
+        const t = body.timings_ms;
+        out.className = "result success";
+        out.textContent = `Caller: ${body.transcript}\nAgent: ${body.reply_text}\n\n` +
+          `${body.mode === "real" ? "real models" : "simulated models"} · VAD ${body.vad.replace("_", " ")} · ` +
+          `STT ${t.stt} ms · LLM ${t.llm} ms · TTS ${t.tts} ms · total ${t.total} ms (demo hardware, not an SLO measurement)`;
+        for (const [stage, c] of Object.entries(body.classification)) classes.appendChild(classificationView(c, titleCase(stage)));
+      } catch (err) {
+        out.className = "result error";
+        out.textContent = errorText(err);
+      }
+    }
+
+    panel.appendChild(h("div", { class: "card-head" }, h("h3", { text: "Voice Agent Turn" }), modeBadge()));
+    panel.appendChild(h("div", { class: "btn-row" }, language, ...audioControls(turn)));
+    panel.appendChild(out);
+    panel.appendChild(player);
+    panel.appendChild(classes);
+    panel.appendChild(h("p", { class: "caption", text: "Pipeline: audio → STT → classification and guardrails → LLM (voice model from tenant config) → output guard → TTS. Turns are stateless: no conversation is stored, so brands cannot contaminate each other. Voice is enabled only for brands whose configuration lists the voice workload (mynaghi.sa, BMW, MINI)." }));
+  }
+
+  function classifyPanel(panel) {
+    const text = h("textarea", { dir: "auto", "aria-label": "Synthetic sample" });
+    text.value = "Customer Sara, IBAN SA0380000000608010167519, mobile 0551234567, wants a test drive.";
+    const workload = h("select", { "aria-label": "Workload" }, ["llm", "stt", "tts", "voice", "batch"].map((w) => h("option", { value: w, text: w.toUpperCase() })));
+    const destination = h("select", { "aria-label": "Destination" }, ["inference", "client_response", "persistence", "export", "backup"].map((d) => h("option", { value: d, text: titleCase(d) })));
+    const out = h("div", { class: "classif-box" });
+    const forwarded = h("div", { class: "result", dir: "auto", text: "The policy result will appear here." });
+
+    async function run() {
+      clear(out);
+      try {
+        const body = await apiJson("/api/classify", { method: "POST", auth: true,
+          json: { text: text.value, workload: workload.value, destination: destination.value } });
+        const c = body.classification;
+        out.appendChild(classificationView(c, "Result"));
+        out.appendChild(kv([
+          ["Privacy tags", c.privacy_tags.join(", ") || "none"],
+          ["Required controls", c.required_controls.join(", ") || "none"],
+          ["Reason codes", c.reason_codes.join(", ")],
+          ["Classifier", c.classifier_version],
+        ]));
+        forwarded.className = body.blocked ? "result error" : "result success";
+        forwarded.textContent = body.blocked ? "Blocked: nothing would be forwarded to this destination."
+          : `Forwarded to ${titleCase(destination.value)}:\n${body.forwarded_text}`;
+      } catch (err) {
+        forwarded.className = "result error";
+        forwarded.textContent = errorText(err);
+      }
+    }
+
+    const samples = [
+      ["Public question", "What are the showroom opening hours in Jeddah?"],
+      ["Customer contact", "Please call the customer on 0551234567 or email sara.test@example.sa"],
+      ["Restricted identifiers", "Iqama 1012345672, card 4111 1111 1111 1111"],
+      ["Credential", "api_key = demo-not-a-real-key-123456"],
+    ];
+    panel.appendChild(h("div", { class: "card-head" }, h("h3", { text: "Data Classification and Policy" }), badge("live")));
+    panel.appendChild(text);
+    panel.appendChild(h("div", { class: "btn-row" }, workload, destination, h("button", { class: "btn", text: "Classify", onclick: run }),
+      samples.map(([label, value]) => h("button", { class: "btn secondary small", text: label, onclick: () => { text.value = value; run(); } }))));
+    panel.appendChild(out);
+    panel.appendChild(forwarded);
+    panel.appendChild(h("p", { class: "caption", text: "Use synthetic data only. The deterministic classifier detects Saudi national ID / Iqama, IBAN, payment cards, Saudi mobile numbers, e-mail, VIN and credentials (Arabic-Indic digits and hidden characters included). The tenant's versioned policy decides allow, redact, restrict or block per destination. No model is consulted and nothing reaches a model from this panel." }));
   }
 
   // ------------------------------------------------------------------ 03 security
@@ -536,7 +714,9 @@
   };
 
   async function renderInfrastructure(root) {
-    const draw = (s) => drawInfra(root, s);
+    let backup = null;
+    try { backup = await apiJson("/api/backup/status", { auth: true }); } catch (err) { backup = { error: errorText(err) }; }
+    const draw = (s) => { drawInfra(root, s); root.appendChild(backupCard(backup)); };
     draw(await apiJson("/api/infra"));
     state.infraTimer = setInterval(async () => {
       if (state.view !== "infrastructure") return;
@@ -605,6 +785,26 @@
     root.appendChild(h("div", { class: "infra" }, site("riyadh"), gtm, site("jeddah")));
     root.appendChild(h("div", { class: "grid cols-2" }, status, timeline));
     root.appendChild(h("p", { class: "caption", text: "GPU and traffic figures are demo data. Real failover tests (replica < 60 s, gateway < 10 s, site ≤ 5 min) arrive in Milestone 8." }));
+  }
+
+  function backupCard(b) {
+    if (!b || b.error) return card("Backup & Recovery", null, h("p", { class: "result error", text: b ? b.error : "Unavailable." }));
+    if (!b.configured) {
+      return card("Backup & Recovery", "live",
+        h("p", { class: "result", text: "Not configured in this demo run (state unknown, not a failure). Set TRIAXIS_BACKUP_DIR and use python -m tools.backup to create, verify and restore-test backups." }));
+    }
+    const last = b.latest;
+    const ageH = last ? Math.round((Date.now() - Date.parse(last.created_at)) / 36e5) : null;
+    const lastVerify = b.verifications[b.verifications.length - 1];
+    const lastRestore = b.restore_tests[b.restore_tests.length - 1];
+    return card("Backup & Recovery", "live",
+      kv([
+        ["Backups on record", String(b.count)],
+        ["Latest backup", last ? `${last.backup_id} (${ageH} h ago)` : "none"],
+        ["Latest verification", lastVerify ? `${lastVerify.result}${lastVerify.code ? ` · ${lastVerify.code}` : ""}` : "not run"],
+        ["Latest restore test", lastRestore ? `${lastRestore.result}${lastRestore.code ? ` · ${lastRestore.code}` : ""}` : "not run"],
+      ]),
+      h("p", { class: "caption", text: "Configuration and metadata only. Prompts, audio, transcripts, secrets and model weights are never in backups. The listing is unverified; verification and restore tests decrypt and check every file." }));
   }
 
   function layer(label, value) { return h("div", { class: "layer" }, h("span", { text: label }), h("strong", { text: value })); }

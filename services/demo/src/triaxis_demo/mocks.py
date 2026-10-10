@@ -14,12 +14,23 @@ import math
 import re
 import struct
 import wave
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Final
 
 from triaxis_common.errors import ErrorCode, TriaxisError
+from triaxis_common.inference import (
+    ChatMessage,
+    InferenceClients,
+    ModelHealth,
+    ModelTask,
+    ServiceStatus,
+    SpeechAudio,
+    Transcription,
+)
+from triaxis_common.taxonomy import InferenceMode
 
 _ARABIC: Final = re.compile(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]")
 # Sentence boundaries, including Arabic question mark, comma and full stop.
@@ -219,3 +230,78 @@ class MockTts:
         """A synthetic sample clip for the STT playground."""
         ms = int(seconds * 1000)
         return encode_wav(_tone(440.0, ms // 2) + _tone(554.0, ms - ms // 2))
+
+
+# --------------------------------------------------------------------- protocol adapters
+# The same interfaces as the real OpenAI-compatible adapters in
+# triaxis_common.inference, so the demo pipeline is identical in both modes.
+# Every result is labelled mode="mock"; real mode never falls back to these.
+
+
+def _simulated_health(task: ModelTask, model_id: str) -> ModelHealth:
+    return ModelHealth(
+        task=task,
+        mode=InferenceMode.MOCK,
+        model_id=model_id,
+        status=ServiceStatus.SIMULATED,
+        reason="mock_mode",
+        checked_at=datetime.now(UTC),
+    )
+
+
+class MockLlmClient:
+    mode = InferenceMode.MOCK
+
+    def __init__(self, engine: MockLlm | None = None) -> None:
+        self._engine = engine or MockLlm()
+
+    async def stream_chat(
+        self, model_id: str, messages: Sequence[ChatMessage], *, max_tokens: int = 512
+    ) -> AsyncIterator[str]:
+        del model_id, max_tokens
+        prompt = next((m.content for m in reversed(messages) if m.role == "user"), "")
+        async for delta in self._engine.stream(prompt):
+            yield delta
+
+    async def health(self, model_id: str) -> ModelHealth:
+        return _simulated_health(ModelTask.LLM, model_id)
+
+
+class MockSttClient:
+    mode = InferenceMode.MOCK
+
+    def __init__(self, engine: MockStt | None = None) -> None:
+        self._engine = engine or MockStt()
+
+    async def transcribe(
+        self, model_id: str, audio: bytes, *, language: str, media_type: str
+    ) -> Transcription:
+        del model_id, media_type
+        result = self._engine.transcribe(audio, language)
+        return Transcription(text=result.text, language=language, duration_ms=result.duration_ms)
+
+    async def health(self, model_id: str) -> ModelHealth:
+        return _simulated_health(ModelTask.STT, model_id)
+
+
+class MockTtsClient:
+    mode = InferenceMode.MOCK
+
+    def __init__(self, engine: MockTts | None = None) -> None:
+        self._engine = engine or MockTts()
+
+    async def synthesise(self, model_id: str, text: str, *, voice: str) -> SpeechAudio:
+        del model_id
+        return SpeechAudio(audio=self._engine.synthesise(text, voice).wav, media_type="audio/wav")
+
+    async def health(self, model_id: str) -> ModelHealth:
+        return _simulated_health(ModelTask.TTS, model_id)
+
+
+def mock_clients(llm: MockLlm | None = None) -> InferenceClients:
+    return InferenceClients(
+        mode=InferenceMode.MOCK,
+        llm=MockLlmClient(llm),
+        stt=MockSttClient(),
+        tts=MockTtsClient(),
+    )

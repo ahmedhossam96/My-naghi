@@ -216,6 +216,18 @@ input:focus, select:focus, textarea:focus, .btn:focus-visible, .nav a:focus-visi
 .chip { background: var(--pale); border: 1px solid var(--hairline); border-radius: 999px; padding: 3px 9px; font-size: 12px; color: var(--indigo); }
 .recording { color: var(--crit); font-weight: bold; }
 
+/* classification and mode */
+.classif-box { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.classif { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.classif-label { font-weight: bold; color: var(--indigo); min-width: 84px; }
+.caption.inline { margin: 0; }
+.mode-indicator {
+  font-size: 12px; padding: 6px 10px; border-radius: 999px; font-weight: bold;
+  border: 1px solid var(--hairline); background: var(--white); color: var(--slate);
+}
+.mode-indicator.mock { border: 1px dashed var(--slate); }
+.mode-indicator.real { background: var(--navy); color: var(--white); border-color: var(--navy); }
+
 /* infrastructure */
 .infra { display: grid; grid-template-columns: 1fr 220px 1fr; gap: var(--gap); align-items: stretch; }
 .site { background: var(--white); border: 1px solid var(--hairline); border-radius: var(--radius); padding: 16px; transition: opacity 0.3s; }
