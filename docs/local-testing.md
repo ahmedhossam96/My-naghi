@@ -32,6 +32,8 @@ TRIAXIS_BACKUP_DIR=/srv/triaxis-backups uv run python -m triaxis_demo   # with b
 
 ## 4. Real-inference acceptance test (currently BLOCKED)
 
+Step-by-step: `docs/runbooks/run-demo-with-real-models.md` (approval with `tools.model_onboard`, download, serve, start, acceptance).
+
 Needs: an approved registry entry for each selected model (verified licence,
 pinned revision, artefact hashes) and self-hosted OpenAI-compatible endpoints.
 
