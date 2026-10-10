@@ -20,7 +20,7 @@ import sys
 from datetime import date
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, field_validator, model_validator
@@ -354,3 +354,32 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+class RegistryApproval:
+    """Model gate for inference adapters (ADR 0021).
+
+    A model may serve traffic only if it is in the registry, matches the task,
+    has status ``approved`` and a commercially cleared, verified licence.
+    """
+
+    def __init__(self, registry: Registry) -> None:
+        self._registry = registry
+
+    @classmethod
+    def from_file(cls, path: Path = DEFAULT_REGISTRY) -> RegistryApproval:
+        return cls(load_registry(path))
+
+    def __call__(self, model_id: str, task: Any) -> Any:
+        from triaxis_common.inference import Approval, ApprovalStatus  # noqa: PLC0415
+
+        entry = self._registry.model(model_id)
+        if entry is None:
+            return Approval(model_id, ApprovalStatus.UNKNOWN)
+        if entry.task.value != str(task):
+            return Approval(model_id, ApprovalStatus.TASK_MISMATCH)
+        if entry.status is not Status.APPROVED:
+            return Approval(model_id, ApprovalStatus.NOT_APPROVED)
+        if not can_download(entry):
+            return Approval(model_id, ApprovalStatus.LICENCE_NOT_CLEARED)
+        return Approval(model_id, ApprovalStatus.APPROVED)
