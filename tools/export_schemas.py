@@ -13,14 +13,18 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from tools.backup import BackupSpec
 from tools.model_registry import Registry
 from triaxis_common.config import HardwareProfile, TenantConfig
+from triaxis_common.policy import HandlingPolicy
 
 SCHEMA_DIR = Path("config/schema")
 MODELS: dict[str, type[BaseModel]] = {
     "tenant.schema.json": TenantConfig,
     "hardware-profile.schema.json": HardwareProfile,
     "model-registry.schema.json": Registry,
+    "data-policy.schema.json": HandlingPolicy,
+    "backup-spec.schema.json": BackupSpec,
 }
 
 

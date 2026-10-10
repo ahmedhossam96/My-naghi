@@ -1,0 +1,19 @@
+# Triaxis backup scope (ADR 0022). Only state Triaxis owns and may retain.
+# Excluded by design (never collected): prompts, completions, audio, transcripts
+# (zero retention); plaintext secrets (OpenBao snapshot procedure is separate);
+# model weights (recovered by sha256 from the offline vault / Harbor).
+schema_version: 1
+spec_version: "2026-10-09.1"
+retention_days: 35
+max_file_bytes: 5242880
+sources:
+  - {id: tenant-config, path: config/tenants, include: ["*.yaml"], validate_as: yaml}
+  - {id: data-policies, path: config/policies, include: ["*.yaml"], validate_as: yaml}
+  - {id: hardware-profiles, path: config/hardware-profiles, include: ["*.yaml"], validate_as: yaml}
+  - {id: config-schemas, path: config/schema, include: ["*.json"], validate_as: json}
+  - {id: backup-spec, path: config/backup, include: ["*.yaml"], validate_as: yaml}
+  - {id: model-registry, path: models/registry.yaml, validate_as: yaml}
+  - {id: deployment, path: deploy, include: ["*.yaml", "*.yml", "*.md", "*.j2", "*.cfg"]}
+  # Metadata-only audit export (allow-list schema enforced line by line), if present.
+  - {id: audit-metadata, path: var/audit, include: ["*.jsonl"], validate_as: audit_jsonl, optional: true}
+deny: []
